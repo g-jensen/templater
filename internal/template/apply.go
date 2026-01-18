@@ -13,6 +13,16 @@ type ApplyResult struct {
 	AlreadyApplied []string
 }
 
+type DryRunResult struct {
+	WouldApply     []string
+	AlreadyApplied []string
+}
+
+type resolvedFeatures struct {
+	toApply        []string
+	alreadyApplied []string
+}
+
 func ApplyFeature(fileSystem fs.FileSystem, exec executor.Executor, templatePath, targetPath, feature string) error {
 	patchPath := path.Join(templatePath, feature, "base.patch")
 	cmd := fmt.Sprintf("git apply --directory=%s %s", targetPath, patchPath)
@@ -29,6 +39,39 @@ func ApplyFeature(fileSystem fs.FileSystem, exec executor.Executor, templatePath
 }
 
 func ApplyFeatures(fileSystem fs.FileSystem, exec executor.Executor, templatePath, targetPath string, features []string) (*ApplyResult, error) {
+	resolved, err := resolveFeatures(fileSystem, templatePath, targetPath, features)
+	if err != nil {
+		return nil, err
+	}
+
+	var applied []string
+	for _, feature := range resolved.toApply {
+		if err := ApplyFeature(fileSystem, exec, templatePath, targetPath, feature); err != nil {
+			rollback(exec, templatePath, targetPath, applied)
+			return nil, err
+		}
+		applied = append(applied, feature)
+	}
+
+	return &ApplyResult{
+		Applied:        applied,
+		AlreadyApplied: resolved.alreadyApplied,
+	}, nil
+}
+
+func DryRun(fileSystem fs.FileSystem, templatePath, targetPath string, features []string) (*DryRunResult, error) {
+	resolved, err := resolveFeatures(fileSystem, templatePath, targetPath, features)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DryRunResult{
+		WouldApply:     resolved.toApply,
+		AlreadyApplied: resolved.alreadyApplied,
+	}, nil
+}
+
+func resolveFeatures(fileSystem fs.FileSystem, templatePath, targetPath string, features []string) (*resolvedFeatures, error) {
 	available, err := ListFeatures(fileSystem, templatePath)
 	if err != nil {
 		return nil, err
@@ -42,8 +85,7 @@ func ApplyFeatures(fileSystem fs.FileSystem, exec executor.Executor, templatePat
 
 	hasRoot := hasRootPatch(fileSystem, templatePath)
 
-	result := &ApplyResult{}
-	var toApply []string
+	result := &resolvedFeatures{}
 	seen := make(map[string]bool)
 
 	for _, feature := range features {
@@ -54,23 +96,13 @@ func ApplyFeatures(fileSystem fs.FileSystem, exec executor.Executor, templatePat
 			}
 			seen[dep] = true
 			if alreadySet[dep] {
-				result.AlreadyApplied = append(result.AlreadyApplied, dep)
+				result.alreadyApplied = append(result.alreadyApplied, dep)
 			} else {
-				toApply = append(toApply, dep)
+				result.toApply = append(result.toApply, dep)
 			}
 		}
 	}
 
-	var applied []string
-	for _, feature := range toApply {
-		if err := ApplyFeature(fileSystem, exec, templatePath, targetPath, feature); err != nil {
-			rollback(exec, templatePath, targetPath, applied)
-			return nil, err
-		}
-		applied = append(applied, feature)
-	}
-
-	result.Applied = applied
 	return result, nil
 }
 

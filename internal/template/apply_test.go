@@ -138,3 +138,36 @@ func TestApplyFeatures_RollsBackMultipleOnFailure(t *testing.T) {
 	assert.Equal(t, expectedBaseCommand, baseCommand.Command)
 	assert.Equal(t, expectedAuthCommand, authCommand.Command)
 }
+
+func TestDryRun_ReturnsWhatWouldBeApplied(t *testing.T) {
+	memfs := fs.NewMemoryFS()
+	memfs.AddDir("templates")
+	memfs.AddDir("templates/auth")
+	memfs.AddDir("templates/auth/oauth")
+	memfs.AddFile("templates/auth/base.patch", []byte("auth patch"))
+	memfs.AddFile("templates/auth/oauth/base.patch", []byte("oauth patch"))
+	memfs.AddDir("project")
+
+	result, err := DryRun(memfs, "templates", "project", []string{"auth/oauth"})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"auth", "auth/oauth"}, result.WouldApply)
+	assert.Empty(t, result.AlreadyApplied)
+}
+
+func TestDryRun_ExcludesAlreadyApplied(t *testing.T) {
+	memfs := fs.NewMemoryFS()
+	memfs.AddDir("templates")
+	memfs.AddDir("templates/auth")
+	memfs.AddDir("templates/auth/oauth")
+	memfs.AddFile("templates/auth/base.patch", []byte("auth patch"))
+	memfs.AddFile("templates/auth/oauth/base.patch", []byte("oauth patch"))
+	memfs.AddDir("project")
+	memfs.AddFile("project/.templater/applied.yml", []byte("applied:\n  - auth\n"))
+
+	result, err := DryRun(memfs, "templates", "project", []string{"auth/oauth"})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"auth/oauth"}, result.WouldApply)
+	assert.Equal(t, []string{"auth"}, result.AlreadyApplied)
+}
