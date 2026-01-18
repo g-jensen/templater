@@ -16,9 +16,19 @@ func TestRenderTree_SingleFeature(t *testing.T) {
 
 func TestRenderTree_MultipleTopLevel(t *testing.T) {
 	features := []string{"api", "auth", "database"}
-	expected := "├── api\n" +
+	expected := "" +
+		"├── api\n" +
 		"├── auth\n" +
 		"└── database\n"
+	assert.Equal(t, expected, RenderTree(features))
+}
+
+func TestRenderTree_SkippedLevel(t *testing.T) {
+	features := []string{"auth", "auth/oauth/github", "auth/oauth/google"}
+	expected := "" +
+		"└── auth\n" +
+		"    ├── oauth/github\n" +
+		"    └── oauth/google\n"
 	assert.Equal(t, expected, RenderTree(features))
 }
 
@@ -31,7 +41,8 @@ func TestRenderTree_Nested(t *testing.T) {
 		"database",
 		"database/migrations",
 	}
-	expected := "├── auth\n" +
+	expected := "" +
+		"├── auth\n" +
 		"│   └── oauth\n" +
 		"│       ├── github\n" +
 		"│       └── google\n" +
