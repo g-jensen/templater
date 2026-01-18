@@ -1,0 +1,78 @@
+name: "dry run"
+description: "Show what would be applied without applying"
+
+before_each:
+  run: |
+    mkdir -p ${SCENARIO_OUTPUT}/templates/auth/oauth/google
+    mkdir -p ${SCENARIO_OUTPUT}/target
+    cat > ${SCENARIO_OUTPUT}/templates/auth/base.patch << 'EOF'
+    diff --git a/auth.txt b/auth.txt
+    new file mode 100644
+    --- /dev/null
+    +++ b/auth.txt
+    @@ -0,0 +1 @@
+    +auth feature
+    EOF
+    cat > ${SCENARIO_OUTPUT}/templates/auth/oauth/base.patch << 'EOF'
+    diff --git a/oauth.txt b/oauth.txt
+    new file mode 100644
+    --- /dev/null
+    +++ b/oauth.txt
+    @@ -0,0 +1 @@
+    +oauth feature
+    EOF
+    cat > ${SCENARIO_OUTPUT}/templates/auth/oauth/google/base.patch << 'EOF'
+    diff --git a/google.txt b/google.txt
+    new file mode 100644
+    --- /dev/null
+    +++ b/google.txt
+    @@ -0,0 +1 @@
+    +google oauth
+    EOF
+  timeout: 5s
+
+scenarios:
+  - id: shows_full_dependency_chain
+    name: "Shows full dependency chain in order"
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target auth/oauth/google --dry-run
+      timeout: 5s
+    assertions:
+      - command: assert_equals dry_run_output.fixture ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: does_not_modify_target
+    name: "Does not create files in target"
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target auth/oauth/google --dry-run
+      timeout: 5s
+    assertions:
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+    after:
+      run: |
+        if [ -f ${SCENARIO_OUTPUT}/target/auth.txt ]; then
+          echo "FAIL: auth.txt should not exist" >&2
+          exit 1
+        fi
+        if [ -d ${SCENARIO_OUTPUT}/target/.templater ]; then
+          echo "FAIL: .templater should not exist" >&2
+          exit 1
+        fi
+      timeout: 5s
+
+  - id: excludes_already_applied
+    name: "Excludes already applied features"
+    before:
+      run: |
+        mkdir -p ${SCENARIO_OUTPUT}/target/.templater
+        cat > ${SCENARIO_OUTPUT}/target/.templater/applied.yml << 'EOF'
+        applied:
+          - auth
+        EOF
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target auth/oauth/google --dry-run
+      timeout: 5s
+    assertions:
+      - command: assert_equals dry_run_partial.fixture ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code

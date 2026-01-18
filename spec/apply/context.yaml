@@ -1,0 +1,222 @@
+name: "apply command"
+description: "Apply features and their dependencies to a target project"
+
+before_each:
+  run: |
+    mkdir -p ${SCENARIO_OUTPUT}/templates
+    mkdir -p ${SCENARIO_OUTPUT}/target
+  timeout: 5s
+
+scenarios:
+  - id: apply_single_feature
+    name: "Apply single feature with no dependencies"
+    before:
+      run: |
+        mkdir -p ${SCENARIO_OUTPUT}/templates/auth
+        cat > ${SCENARIO_OUTPUT}/templates/auth/base.patch << 'EOF'
+        diff --git a/auth.txt b/auth.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/auth.txt
+        @@ -0,0 +1 @@
+        +auth feature
+        EOF
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target auth
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applying auth... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied 1 feature" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+      - command: assert_equals "auth feature" ${SCENARIO_OUTPUT}/target/auth.txt
+
+  - id: apply_with_dependencies
+    name: "Apply feature resolves and applies dependencies"
+    before:
+      run: |
+        mkdir -p ${SCENARIO_OUTPUT}/templates/auth/oauth
+        cat > ${SCENARIO_OUTPUT}/templates/auth/base.patch << 'EOF'
+        diff --git a/auth.txt b/auth.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/auth.txt
+        @@ -0,0 +1 @@
+        +auth feature
+        EOF
+        cat > ${SCENARIO_OUTPUT}/templates/auth/oauth/base.patch << 'EOF'
+        diff --git a/oauth.txt b/oauth.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/oauth.txt
+        @@ -0,0 +1 @@
+        +oauth feature
+        EOF
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target auth/oauth
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applying auth... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applying auth/oauth... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied 2 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+      - command: assert_equals "auth feature" ${SCENARIO_OUTPUT}/target/auth.txt
+      - command: assert_equals "oauth feature" ${SCENARIO_OUTPUT}/target/oauth.txt
+
+  - id: apply_multiple_features
+    name: "Apply multiple features deduplicates shared dependencies"
+    before:
+      run: |
+        mkdir -p ${SCENARIO_OUTPUT}/templates/auth/oauth/google
+        mkdir -p ${SCENARIO_OUTPUT}/templates/auth/oauth/github
+        cat > ${SCENARIO_OUTPUT}/templates/auth/base.patch << 'EOF'
+        diff --git a/auth.txt b/auth.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/auth.txt
+        @@ -0,0 +1 @@
+        +auth feature
+        EOF
+        cat > ${SCENARIO_OUTPUT}/templates/auth/oauth/base.patch << 'EOF'
+        diff --git a/oauth.txt b/oauth.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/oauth.txt
+        @@ -0,0 +1 @@
+        +oauth feature
+        EOF
+        cat > ${SCENARIO_OUTPUT}/templates/auth/oauth/google/base.patch << 'EOF'
+        diff --git a/google.txt b/google.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/google.txt
+        @@ -0,0 +1 @@
+        +google oauth
+        EOF
+        cat > ${SCENARIO_OUTPUT}/templates/auth/oauth/github/base.patch << 'EOF'
+        diff --git a/github.txt b/github.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/github.txt
+        @@ -0,0 +1 @@
+        +github oauth
+        EOF
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target auth/oauth/google auth/oauth/github
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applied 4 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+      - command: assert_equals "auth feature" ${SCENARIO_OUTPUT}/target/auth.txt
+      - command: assert_equals "oauth feature" ${SCENARIO_OUTPUT}/target/oauth.txt
+      - command: assert_equals "google oauth" ${SCENARIO_OUTPUT}/target/google.txt
+      - command: assert_equals "github oauth" ${SCENARIO_OUTPUT}/target/github.txt
+
+  - id: skip_already_applied
+    name: "Skip features already applied"
+    before:
+      run: |
+        mkdir -p ${SCENARIO_OUTPUT}/templates/auth/oauth
+        mkdir -p ${SCENARIO_OUTPUT}/target/.templater
+        cat > ${SCENARIO_OUTPUT}/templates/auth/base.patch << 'EOF'
+        diff --git a/auth.txt b/auth.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/auth.txt
+        @@ -0,0 +1 @@
+        +auth feature
+        EOF
+        cat > ${SCENARIO_OUTPUT}/templates/auth/oauth/base.patch << 'EOF'
+        diff --git a/oauth.txt b/oauth.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/oauth.txt
+        @@ -0,0 +1 @@
+        +oauth feature
+        EOF
+        echo "auth feature" > ${SCENARIO_OUTPUT}/target/auth.txt
+        cat > ${SCENARIO_OUTPUT}/target/.templater/applied.yml << 'EOF'
+        applied:
+          - auth
+        EOF
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target auth/oauth
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applying auth/oauth... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied 1 feature" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "1 already applied" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: updates_applied_yml
+    name: "Updates applied.yml after successful apply"
+    before:
+      run: |
+        mkdir -p ${SCENARIO_OUTPUT}/templates/auth
+        cat > ${SCENARIO_OUTPUT}/templates/auth/base.patch << 'EOF'
+        diff --git a/auth.txt b/auth.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/auth.txt
+        @@ -0,0 +1 @@
+        +auth feature
+        EOF
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target auth
+      timeout: 10s
+    assertions:
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+      - command: assert_contains "auth" ${SCENARIO_OUTPUT}/target/.templater/applied.yml
+
+  - id: apply_with_root_patch
+    name: "Root base.patch is applied as dependency"
+    before:
+      run: |
+        mkdir -p ${SCENARIO_OUTPUT}/templates/auth
+        cat > ${SCENARIO_OUTPUT}/templates/base.patch << 'EOF'
+        diff --git a/root.txt b/root.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/root.txt
+        @@ -0,0 +1 @@
+        +root feature
+        EOF
+        cat > ${SCENARIO_OUTPUT}/templates/auth/base.patch << 'EOF'
+        diff --git a/auth.txt b/auth.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/auth.txt
+        @@ -0,0 +1 @@
+        +auth feature
+        EOF
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target auth
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applied 2 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+      - command: assert_equals "root feature" ${SCENARIO_OUTPUT}/target/root.txt
+      - command: assert_equals "auth feature" ${SCENARIO_OUTPUT}/target/auth.txt
+
+  - id: nonexistent_feature
+    name: "Nonexistent feature returns error"
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target nonexistent
+      timeout: 5s
+    assertions:
+      - command: assert_contains "not found" ${RUN_OUTPUT}/stderr
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: nonexistent_template_repo
+    name: "Nonexistent template repo returns error"
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/nonexistent ${SCENARIO_OUTPUT}/target auth
+      timeout: 5s
+    assertions:
+      - command: assert_contains "not found" ${RUN_OUTPUT}/stderr
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0

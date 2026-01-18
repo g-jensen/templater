@@ -1,0 +1,101 @@
+name: "rollback on failure"
+description: "Roll back all patches if any patch fails to apply"
+
+before_each:
+  run: |
+    mkdir -p ${SCENARIO_OUTPUT}/templates/auth/oauth
+    mkdir -p ${SCENARIO_OUTPUT}/target
+  timeout: 5s
+
+scenarios:
+  - id: rollback_on_patch_failure
+    name: "Rolls back successfully applied patches when later patch fails"
+    before:
+      run: |
+        cat > ${SCENARIO_OUTPUT}/templates/auth/base.patch << 'EOF'
+        diff --git a/auth.txt b/auth.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/auth.txt
+        @@ -0,0 +1 @@
+        +auth feature
+        EOF
+        cat > ${SCENARIO_OUTPUT}/templates/auth/oauth/base.patch << 'EOF'
+        diff --git a/existing.txt b/existing.txt
+        --- a/existing.txt
+        +++ b/existing.txt
+        @@ -1 +1 @@
+        -this line does not exist
+        +oauth feature
+        EOF
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target auth/oauth
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applying auth... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applying auth/oauth... failed" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "rolled back" ${RUN_OUTPUT}/stdout
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+    after:
+      run: |
+        if [ -f ${SCENARIO_OUTPUT}/target/auth.txt ]; then
+          echo "FAIL: auth.txt should have been rolled back" >&2
+          exit 1
+        fi
+      timeout: 5s
+
+  - id: no_applied_yml_on_failure
+    name: "Does not create applied.yml on failure"
+    before:
+      run: |
+        cat > ${SCENARIO_OUTPUT}/templates/auth/base.patch << 'EOF'
+        diff --git a/existing.txt b/existing.txt
+        --- a/existing.txt
+        +++ b/existing.txt
+        @@ -1 +1 @@
+        -this line does not exist
+        +will fail
+        EOF
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target auth
+      timeout: 10s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+    after:
+      run: |
+        if [ -d ${SCENARIO_OUTPUT}/target/.templater ]; then
+          echo "FAIL: .templater should not exist after failure" >&2
+          exit 1
+        fi
+      timeout: 5s
+
+  - id: preserves_existing_files_on_rollback
+    name: "Preserves pre-existing files after rollback"
+    before:
+      run: |
+        echo "original content" > ${SCENARIO_OUTPUT}/target/existing.txt
+        cat > ${SCENARIO_OUTPUT}/templates/auth/base.patch << 'EOF'
+        diff --git a/auth.txt b/auth.txt
+        new file mode 100644
+        --- /dev/null
+        +++ b/auth.txt
+        @@ -0,0 +1 @@
+        +auth feature
+        EOF
+        cat > ${SCENARIO_OUTPUT}/templates/auth/oauth/base.patch << 'EOF'
+        diff --git a/nonexistent.txt b/nonexistent.txt
+        --- a/nonexistent.txt
+        +++ b/nonexistent.txt
+        @@ -1 +1 @@
+        -old
+        +new
+        EOF
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${SCENARIO_OUTPUT}/templates ${SCENARIO_OUTPUT}/target auth/oauth
+      timeout: 10s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+      - command: assert_equals "original content" ${SCENARIO_OUTPUT}/target/existing.txt
