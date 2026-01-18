@@ -5,6 +5,12 @@ import (
 	"path/filepath"
 )
 
+type WritableFS interface {
+	WriteFile(path string, data []byte) error
+	AppendFile(path string, data []byte) error
+	ReadFile(path string) ([]byte, error)
+}
+
 type OSWritableFS struct {
 	BaseDir string
 }
