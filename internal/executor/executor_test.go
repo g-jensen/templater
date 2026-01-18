@@ -45,10 +45,11 @@ func TestShellExecutor_PassesEnvVars(t *testing.T) {
 	assert.Equal(t, "hello\n", stdout)
 }
 
+// TODO - mark test as slow?
 func TestShellExecutor_ReturnsErrTimeoutWhenCommandExceedsTimeout(t *testing.T) {
 	executor := NewShellExecutor()
 
-	_, _, _, err := executor.Execute("sleep 10", "100ms", nil)
+	_, _, _, err := executor.Execute("sleep 2", "100ms", nil)
 
 	assert.True(t, errors.Is(err, ErrTimeout))
 }
