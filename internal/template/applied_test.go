@@ -58,6 +58,24 @@ func TestWriteApplied(t *testing.T) {
 		string(data))
 }
 
+func TestWriteApplied_Overwrites(t *testing.T) {
+	memfs := fs.NewMemoryFS()
+	memfs.AddDir("project")
+
+	err := WriteApplied(memfs, "project", []string{"auth"})
+	require.NoError(t, err)
+
+	err = WriteApplied(memfs, "project", []string{"auth/oauth"})
+	require.NoError(t, err)
+
+	data, err := memfs.ReadFile("project/.templater/applied.yml")
+	require.NoError(t, err)
+	assert.Equal(t,
+		"applied:\n"+
+			"    - auth/oauth\n",
+		string(data))
+}
+
 func TestWriteApplied_SortsAlphabetically(t *testing.T) {
 	memfs := fs.NewMemoryFS()
 	memfs.AddDir("project")
