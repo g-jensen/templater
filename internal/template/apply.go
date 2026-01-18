@@ -77,7 +77,7 @@ func resolveFeatures(fileSystem fs.FileSystem, templatePath, targetPath string, 
 		return nil, err
 	}
 
-	alreadyApplied, err := ReadApplied(fileSystem.(fs.WritableFS), targetPath)
+	alreadyApplied, err := ReadApplied(fileSystem, targetPath)
 	if err != nil {
 		return nil, err
 	}

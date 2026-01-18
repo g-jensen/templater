@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"templater/internal/executor"
 	"templater/internal/fs"
 	"templater/internal/template"
+
+	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
@@ -40,9 +41,9 @@ var statusCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targetPath := args[0]
-		fileSystem := fs.NewOSWritableFS(targetPath)
+		fileSystem := fs.OSFileSystem{}
 
-		applied, err := template.ReadApplied(fileSystem, "")
+		applied, err := template.ReadApplied(fileSystem, targetPath)
 		if err != nil {
 			return err
 		}
@@ -79,11 +80,10 @@ var applyCmd = &cobra.Command{
 		}
 
 		fileSystem := fs.OSFileSystem{}
-		writableFS := fs.NewOSWritableFS(targetPath)
 
 		if featuresFile != "" {
 			var err error
-			features, err = template.ParseFeaturesFile(writableFS, featuresFile)
+			features, err = template.ParseFeaturesFile(fileSystem, featuresFile)
 			if err != nil {
 				return fmt.Errorf("failed to read features file: %w", err)
 			}
@@ -129,7 +129,7 @@ var applyCmd = &cobra.Command{
 		fmt.Println()
 
 		allApplied := append(result.AlreadyApplied, result.Applied...)
-		if err := template.WriteApplied(writableFS, "", allApplied); err != nil {
+		if err := template.WriteApplied(fileSystem, "", allApplied); err != nil {
 			return fmt.Errorf("failed to update applied.yml: %w", err)
 		}
 
@@ -155,6 +155,7 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(applyCmd)
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
 
 func main() {

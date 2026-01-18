@@ -5,15 +5,16 @@ import (
 	"path"
 	"sort"
 
-	"gopkg.in/yaml.v3"
 	"templater/internal/fs"
+
+	"gopkg.in/yaml.v3"
 )
 
 type appliedYml struct {
 	Applied []string `yaml:"applied"`
 }
 
-func ReadApplied(fileSystem fs.WritableFS, targetPath string) ([]string, error) {
+func ReadApplied(fileSystem fs.FileSystem, targetPath string) ([]string, error) {
 	data, err := fileSystem.ReadFile(path.Join(targetPath, ".templater/applied.yml"))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -30,7 +31,7 @@ func ReadApplied(fileSystem fs.WritableFS, targetPath string) ([]string, error) 
 	return applied.Applied, nil
 }
 
-func WriteApplied(fileSystem fs.WritableFS, targetPath string, features []string) error {
+func WriteApplied(fileSystem fs.FileSystem, targetPath string, features []string) error {
 	sorted := make([]string, len(features))
 	copy(sorted, features)
 	sort.Strings(sorted)

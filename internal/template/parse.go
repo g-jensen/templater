@@ -6,7 +6,7 @@ import (
 	"templater/internal/fs"
 )
 
-func ParseFeaturesFile(fileSystem fs.WritableFS, path string) ([]string, error) {
+func ParseFeaturesFile(fileSystem fs.FileSystem, path string) ([]string, error) {
 	data, err := fileSystem.ReadFile(path)
 	if err != nil {
 		return nil, err
