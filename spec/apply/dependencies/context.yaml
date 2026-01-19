@@ -26,7 +26,7 @@ scenarios:
       command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google
       timeout: 10s
     assertions:
-      - command: assert_matches "auth[\s\S]*auth/oauth[\s\S]*auth/oauth/google" ${RUN_OUTPUT}/stdout
+      - command: assert_equals ${SPEC_ROOT}/fixtures/expected_dependency_order.fixture ${RUN_OUTPUT}/stdout
       - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
 
   - id: skip_applied_dependencies
