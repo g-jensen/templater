@@ -148,6 +148,34 @@ func TestApplyFeatures_RollsBackMultipleOnFailure(t *testing.T) {
 	assert.Equal(t, expectedAuthCommand, authCommand.Command)
 }
 
+func TestApplyFeature_ErrorsOnMissingFeature(t *testing.T) {
+	memfs := fs.NewMemoryFS()
+	memfs.AddDir("templates")
+	memfs.AddDir("project")
+
+	exec := &executor.FakeExecutor{}
+
+	_, err := ApplyFeatures(memfs, exec, "templates", "project", []string{"auth"})
+	assert.EqualError(t, err, "feature not found: auth")
+
+	assert.Equal(t, 0, len(exec.Commands))
+}
+
+func TestApplyFeature_AppliesNothingOnMissingFeature(t *testing.T) {
+	memfs := fs.NewMemoryFS()
+	memfs.AddDir("templates")
+	memfs.AddDir("templates/auth")
+	memfs.AddDir("project")
+	memfs.AddFile("templates/auth/base.patch", []byte("auth patch"))
+
+	exec := &executor.FakeExecutor{}
+
+	_, err := ApplyFeatures(memfs, exec, "templates", "project", []string{"auth", "websockets"})
+	assert.EqualError(t, err, "feature not found: websockets")
+
+	assert.Equal(t, 0, len(exec.Commands))
+}
+
 func TestDryRun_ReturnsWhatWouldBeApplied(t *testing.T) {
 	memfs := fs.NewMemoryFS()
 	memfs.AddDir("templates")

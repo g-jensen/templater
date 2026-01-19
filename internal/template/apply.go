@@ -90,6 +90,9 @@ func resolveFeatures(fileSystem fs.FileSystem, templatePath, targetPath string, 
 
 	for _, feature := range features {
 		deps := ResolveDependencies(feature, available, hasRoot)
+		if len(deps) == 0 {
+			return nil, fmt.Errorf("feature not found: %s", feature)
+		}
 		for _, dep := range deps {
 			if seen[dep] {
 				continue
