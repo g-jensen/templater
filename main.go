@@ -129,7 +129,7 @@ var applyCmd = &cobra.Command{
 		fmt.Println()
 
 		allApplied := append(result.AlreadyApplied, result.Applied...)
-		if err := template.WriteApplied(fileSystem, "", allApplied); err != nil {
+		if err := template.WriteApplied(fileSystem, targetPath, allApplied); err != nil {
 			return fmt.Errorf("failed to update applied.yml: %w", err)
 		}
 
