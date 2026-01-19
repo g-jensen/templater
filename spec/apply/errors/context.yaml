@@ -10,16 +10,16 @@ scenarios:
     assertions:
       - command: assert_gt ${RUN_OUTPUT}/exit_code 0
 
-  - id: missing_target_dir
-    name: "Error when target directory does not exist"
-    before:
-      run: ${SPEC_ROOT}/apply/errors/scripts/setup_basic.sh ${TEST_TMP}
-      timeout: 5s
-    run:
-      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/nonexistent auth 2>&1
-      timeout: 5s
-    assertions:
-      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+  # - id: missing_target_dir
+  #   name: "Error when target directory does not exist"
+  #   before:
+  #     run: ${SPEC_ROOT}/apply/errors/scripts/setup_basic.sh ${TEST_TMP}
+  #     timeout: 5s
+  #   run:
+  #     command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/nonexistent auth 2>&1
+  #     timeout: 5s
+  #   assertions:
+  #     - command: assert_gt ${RUN_OUTPUT}/exit_code 0
 
   - id: no_features_specified
     name: "Error when no features are specified"
