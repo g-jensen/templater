@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 mkdir -p "$1/templates/auth"
-mkdir -p "$1/project"
 cat > "$1/templates/auth/base.patch" << 'PATCH'
 ---
 diff --git a/auth.txt b/auth.txt
