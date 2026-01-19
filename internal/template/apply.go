@@ -25,7 +25,7 @@ type resolvedFeatures struct {
 
 func ApplyFeature(fileSystem fs.FileSystem, exec executor.Executor, templatePath, targetPath, feature string) error {
 	patchPath := path.Join(templatePath, feature, "base.patch")
-	cmd := fmt.Sprintf("git apply --directory=%s %s", targetPath, patchPath)
+	cmd := fmt.Sprintf("git apply --unsafe-paths --directory=%s %s", targetPath, patchPath)
 
 	_, stderr, exitCode, err := exec.Execute(cmd, "30s", nil)
 	if err != nil {
@@ -114,7 +114,7 @@ func rollback(exec executor.Executor, templatePath, targetPath string, applied [
 
 func reverseFeature(exec executor.Executor, templatePath, targetPath, feature string) {
 	patchPath := path.Join(templatePath, feature, "base.patch")
-	cmd := fmt.Sprintf("git apply --reverse --directory=%s %s", targetPath, patchPath)
+	cmd := fmt.Sprintf("git apply --unsafe-paths --reverse --directory=%s %s", targetPath, patchPath)
 	exec.Execute(cmd, "30s", nil)
 }
 

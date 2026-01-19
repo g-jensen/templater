@@ -23,7 +23,7 @@ func TestApplyFeature_ExecutesGitApply(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, exec.Commands, 1)
-	expected_command := "git apply --directory=project templates/auth/base.patch"
+	expected_command := "git apply --unsafe-paths --directory=project templates/auth/base.patch"
 	assert.Equal(t, exec.Commands[0].Command, expected_command)
 }
 
@@ -95,7 +95,7 @@ func TestApplyFeatures_RollsBackOnFailure(t *testing.T) {
 
 	exec := &executor.FakeExecutor{
 		ExitCodes: map[string]int{
-			"git apply --directory=project templates/auth/oauth/base.patch": 1,
+			"git apply --unsafe-paths --directory=project templates/auth/oauth/base.patch": 1,
 		},
 		Stderr: "patch does not apply",
 	}
@@ -105,7 +105,7 @@ func TestApplyFeatures_RollsBackOnFailure(t *testing.T) {
 
 	assert.Equal(t, 3, len(exec.Commands))
 	lastCmd := exec.Commands[len(exec.Commands)-1]
-	expectedCommand := "git apply --reverse --directory=project templates/auth/base.patch"
+	expectedCommand := "git apply --unsafe-paths --reverse --directory=project templates/auth/base.patch"
 	assert.Equal(t, expectedCommand, lastCmd.Command)
 }
 
@@ -121,7 +121,7 @@ func TestApplyFeatures_RollsBackMultipleOnFailure(t *testing.T) {
 
 	exec := &executor.FakeExecutor{
 		ExitCodes: map[string]int{
-			"git apply --directory=project templates/auth/oauth/base.patch": 1,
+			"git apply --unsafe-paths --directory=project templates/auth/oauth/base.patch": 1,
 		},
 		Stderr: "patch does not apply",
 	}
@@ -132,9 +132,9 @@ func TestApplyFeatures_RollsBackMultipleOnFailure(t *testing.T) {
 	assert.Equal(t, 5, len(exec.Commands))
 
 	baseCommand := exec.Commands[len(exec.Commands)-1]
-	expectedBaseCommand := "git apply --reverse --directory=project templates/base.patch"
+	expectedBaseCommand := "git apply --unsafe-paths --reverse --directory=project templates/base.patch"
 	authCommand := exec.Commands[len(exec.Commands)-2]
-	expectedAuthCommand := "git apply --reverse --directory=project templates/auth/base.patch"
+	expectedAuthCommand := "git apply --unsafe-paths --reverse --directory=project templates/auth/base.patch"
 	assert.Equal(t, expectedBaseCommand, baseCommand.Command)
 	assert.Equal(t, expectedAuthCommand, authCommand.Command)
 }
