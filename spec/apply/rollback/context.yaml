@@ -8,7 +8,7 @@ scenarios:
       run: ${SPEC_ROOT}/apply/rollback/scripts/setup_failing_second.sh ${TEST_TMP}
       timeout: 5s
     run:
-      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth database 2>&1 || true
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth database 2>&1
       timeout: 10s
     assertions:
       - command: assert_contains "failed to apply" ${RUN_OUTPUT}/stdout
