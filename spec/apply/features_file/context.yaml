@@ -1,0 +1,86 @@
+name: "Features file mode"
+description: "Apply features from a file with -f flag"
+
+scenarios:
+  - id: apply_from_file
+    name: "Apply features listed in a file"
+    before:
+      run: |
+        ${SPEC_ROOT}/apply/features_file/scripts/setup_features.sh ${TEST_TMP}
+        printf '%s\n' "auth" "database" > ${TEST_TMP}/features.txt
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project -f ${TEST_TMP}/features.txt
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applying auth... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applying database... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied 2 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: ignore_blank_lines
+    name: "Blank lines in features file are ignored"
+    before:
+      run: |
+        ${SPEC_ROOT}/apply/features_file/scripts/setup_features.sh ${TEST_TMP}
+        printf '%s\n' "auth" "" "database" "" > ${TEST_TMP}/features.txt
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project -f ${TEST_TMP}/features.txt
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applied 2 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: trim_whitespace
+    name: "Whitespace around feature names is trimmed"
+    before:
+      run: |
+        ${SPEC_ROOT}/apply/features_file/scripts/setup_features.sh ${TEST_TMP}
+        printf '%s\n' "  auth  " "	database	" > ${TEST_TMP}/features.txt
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project -f ${TEST_TMP}/features.txt
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applied 2 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: cannot_mix_file_and_positional
+    name: "Cannot use -f with positional feature arguments"
+    before:
+      run: |
+        ${SPEC_ROOT}/apply/features_file/scripts/setup_features.sh ${TEST_TMP}
+        printf '%s' "auth" > ${TEST_TMP}/features.txt
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project -f ${TEST_TMP}/features.txt database 2>&1
+      timeout: 10s
+    assertions:
+      - command: assert_contains "cannot use both -f and positional" ${RUN_OUTPUT}/stdout
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: nonexistent_features_file
+    name: "Error when features file does not exist"
+    before:
+      run: ${SPEC_ROOT}/apply/features_file/scripts/setup_features.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project -f ${TEST_TMP}/nonexistent.txt 2>&1
+      timeout: 10s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: empty_features_file
+    name: "Error when features file is empty"
+    before:
+      run: |
+        ${SPEC_ROOT}/apply/features_file/scripts/setup_features.sh ${TEST_TMP}
+        touch ${TEST_TMP}/features.txt
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project -f ${TEST_TMP}/features.txt 2>&1
+      timeout: 10s
+    assertions:
+      - command: assert_contains "no features specified" ${RUN_OUTPUT}/stdout
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0

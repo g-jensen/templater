@@ -1,0 +1,26 @@
+name: "Templater CLI"
+description: "Acceptance tests for templater - a patch-based feature templating CLI"
+
+env:
+  BIN_DIR: "/tmp/templater_bin"
+  TEMPLATER: "/tmp/templater_bin/templater"
+  TEST_TMP: "/tmp/templater_test"
+
+before:
+  run: |
+    mkdir -p ${BIN_DIR}
+    cd ${SPEC_ROOT}/..
+    go build -o ${BIN_DIR}/templater .
+  timeout: 60s
+
+after:
+  run: rm -rf ${BIN_DIR} && rm -rf ${TEST_TMP}
+  timeout: 5s
+
+before_each:
+  run: mkdir -p ${TEST_TMP}
+  timeout: 2s
+
+after_each:
+  run: rm -rf ${TEST_TMP}
+  timeout: 5s

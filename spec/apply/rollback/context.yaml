@@ -1,0 +1,48 @@
+name: "Rollback on failure"
+description: "Reverse applied patches when a patch fails"
+
+scenarios:
+  - id: rollback_on_failure
+    name: "Roll back applied patches when later patch fails"
+    before:
+      run: ${SPEC_ROOT}/apply/rollback/scripts/setup_failing_second.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth database 2>&1 || true
+      timeout: 10s
+    assertions:
+      - command: assert_contains "failed to apply" ${RUN_OUTPUT}/stdout
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: no_files_after_rollback
+    name: "No feature files remain after rollback"
+    before:
+      run: ${SPEC_ROOT}/apply/rollback/scripts/setup_failing_second.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth database 2>&1; ls ${TEST_TMP}/project/auth.txt 2>&1 || true
+      timeout: 10s
+    assertions:
+      - command: assert_contains "No such file or directory" ${RUN_OUTPUT}/stdout
+
+  - id: no_applied_yml_after_rollback
+    name: "No applied.yml created after rollback"
+    before:
+      run: ${SPEC_ROOT}/apply/rollback/scripts/setup_failing_second.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth database 2>&1; ls ${TEST_TMP}/project/.templater 2>&1 || true
+      timeout: 10s
+    assertions:
+      - command: assert_contains "No such file or directory" ${RUN_OUTPUT}/stdout
+
+  - id: rollback_dependency_chain
+    name: "Roll back entire dependency chain on failure"
+    before:
+      run: ${SPEC_ROOT}/apply/rollback/scripts/setup_failing_dependency.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google 2>&1; ls ${TEST_TMP}/project/auth.txt 2>&1 || true
+      timeout: 10s
+    assertions:
+      - command: assert_contains "No such file or directory" ${RUN_OUTPUT}/stdout

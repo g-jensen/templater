@@ -1,0 +1,82 @@
+name: "Dependency resolution"
+description: "Apply features with automatic dependency resolution"
+
+scenarios:
+  - id: apply_with_dependencies
+    name: "Applying a nested feature applies its dependencies first"
+    before:
+      run: ${SPEC_ROOT}/apply/dependencies/scripts/setup_nested_features.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applying auth... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applying auth/oauth... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applying auth/oauth/google... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied 3 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: dependency_order
+    name: "Dependencies are applied in correct order (ancestors first)"
+    before:
+      run: ${SPEC_ROOT}/apply/dependencies/scripts/setup_nested_features.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google
+      timeout: 10s
+    assertions:
+      - command: assert_matches "auth[\s\S]*auth/oauth[\s\S]*auth/oauth/google" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: skip_applied_dependencies
+    name: "Skip dependencies that are already applied"
+    before:
+      run: ${SPEC_ROOT}/apply/dependencies/scripts/setup_partial_applied.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/github
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applying auth/oauth/github... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied 1 feature" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "2 already applied" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: shared_dependencies_applied_once
+    name: "Shared dependencies are applied only once"
+    before:
+      run: ${SPEC_ROOT}/apply/dependencies/scripts/setup_sibling_features.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google auth/oauth/github
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applied 4 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: skip_missing_ancestor_patches
+    name: "Skip ancestor directories without base.patch"
+    before:
+      run: ${SPEC_ROOT}/apply/dependencies/scripts/setup_gap_in_ancestors.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project providers/oauth/google
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applying providers/oauth... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applying providers/oauth/google... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied 2 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: root_patch_applied_first
+    name: "Root base.patch is applied as first dependency"
+    before:
+      run: ${SPEC_ROOT}/apply/dependencies/scripts/setup_with_root_patch.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applied 2 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code

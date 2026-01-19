@@ -1,0 +1,4 @@
+applied:
+    - auth
+    - auth/oauth
+    - auth/oauth/google

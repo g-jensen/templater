@@ -1,0 +1,104 @@
+name: "templater status"
+description: "Show features applied to a target project"
+
+scenarios:
+  - id: no_templater_directory
+    name: "No .templater directory shows no features"
+    before:
+      run: mkdir -p ${TEST_TMP}/project
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} status ${TEST_TMP}/project
+      timeout: 5s
+    assertions:
+      - command: assert_contains "No features applied" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: empty_applied_list
+    name: "Empty applied.yml shows no features"
+    before:
+      run: |
+        mkdir -p ${TEST_TMP}/project/.templater
+        printf '%s\n' "applied: []" > ${TEST_TMP}/project/.templater/applied.yml
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} status ${TEST_TMP}/project
+      timeout: 5s
+    assertions:
+      - command: assert_contains "No features applied" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: single_applied_feature
+    name: "Single applied feature is shown"
+    before:
+      run: |
+        mkdir -p ${TEST_TMP}/project/.templater
+        printf 'applied:\n  - auth\n' > ${TEST_TMP}/project/.templater/applied.yml
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} status ${TEST_TMP}/project
+      timeout: 5s
+    assertions:
+      - command: assert_contains "Applied features:" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "- auth" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: multiple_applied_features
+    name: "Multiple applied features are shown"
+    before:
+      run: |
+        mkdir -p ${TEST_TMP}/project/.templater
+        printf 'applied:\n  - auth\n  - auth/oauth\n  - auth/oauth/google\n' > ${TEST_TMP}/project/.templater/applied.yml
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} status ${TEST_TMP}/project
+      timeout: 5s
+    assertions:
+      - command: assert_contains "Applied features:" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "- auth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "- auth/oauth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "- auth/oauth/google" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: features_sorted_alphabetically
+    name: "Applied features are displayed in alphabetical order"
+    before:
+      run: |
+        mkdir -p ${TEST_TMP}/project/.templater
+        printf 'applied:\n  - zebra\n  - alpha\n  - middle\n' > ${TEST_TMP}/project/.templater/applied.yml
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} status ${TEST_TMP}/project
+      timeout: 5s
+    assertions:
+      - command: assert_matches "alpha[\s\S]*middle[\s\S]*zebra" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: nonexistent_directory
+    name: "Nonexistent target directory returns error"
+    run:
+      command: ${TEMPLATER} status ${TEST_TMP}/nonexistent
+      timeout: 5s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: missing_argument
+    name: "Missing argument returns error"
+    run:
+      command: ${TEMPLATER} status 2>&1
+      timeout: 5s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: invalid_yaml
+    name: "Invalid YAML in applied.yml returns error"
+    before:
+      run: |
+        mkdir -p ${TEST_TMP}/project/.templater
+        printf '%s' "not: valid: yaml: content" > ${TEST_TMP}/project/.templater/applied.yml
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} status ${TEST_TMP}/project
+      timeout: 5s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0

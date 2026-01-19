@@ -1,0 +1,41 @@
+name: "Dry run mode"
+description: "Show what would be applied without applying"
+
+scenarios:
+  - id: dry_run_shows_features
+    name: "Dry run lists features that would be applied"
+    before:
+      run: ${SPEC_ROOT}/apply/dry_run/scripts/setup_nested.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google --dry-run
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Would apply:" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "1. auth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "2. auth/oauth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "3. auth/oauth/google" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: dry_run_no_changes
+    name: "Dry run does not modify the project"
+    before:
+      run: ${SPEC_ROOT}/apply/dry_run/scripts/setup_nested.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google --dry-run && ls ${TEST_TMP}/project/.templater 2>&1 || true
+      timeout: 10s
+    assertions:
+      - command: assert_contains "No such file or directory" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: dry_run_no_files_created
+    name: "Dry run does not create feature files"
+    before:
+      run: ${SPEC_ROOT}/apply/dry_run/scripts/setup_nested.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth --dry-run && ls ${TEST_TMP}/project/auth.txt 2>&1 || true
+      timeout: 10s
+    assertions:
+      - command: assert_contains "No such file or directory" ${RUN_OUTPUT}/stdout

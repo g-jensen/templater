@@ -1,0 +1,14 @@
+name: "templater apply"
+description: "Apply features and their dependencies to a target project"
+
+before_each:
+  run: |
+    mkdir -p ${TEST_TMP}/project
+    cd ${TEST_TMP}/project
+    git init --quiet
+    git config user.email "test@test.com"
+    git config user.name "Test"
+    printf '%s' "initial" > file.txt
+    git add .
+    git commit -m "initial" --quiet
+  timeout: 10s

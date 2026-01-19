@@ -1,0 +1,70 @@
+name: "CLI interface"
+description: "General CLI behavior and help"
+
+scenarios:
+  - id: help_flag
+    name: "--help shows usage information"
+    run:
+      command: ${TEMPLATER} --help
+      timeout: 5s
+    assertions:
+      - command: assert_contains "templater" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "list" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "status" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "apply" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: help_subcommand
+    name: "help subcommand shows usage"
+    run:
+      command: ${TEMPLATER} help
+      timeout: 5s
+    assertions:
+      - command: assert_contains "templater" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: list_help
+    name: "list --help shows list usage"
+    run:
+      command: ${TEMPLATER} list --help
+      timeout: 5s
+    assertions:
+      - command: assert_contains "template-repo" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: status_help
+    name: "status --help shows status usage"
+    run:
+      command: ${TEMPLATER} status --help
+      timeout: 5s
+    assertions:
+      - command: assert_contains "target-dir" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: apply_help
+    name: "apply --help shows apply usage"
+    run:
+      command: ${TEMPLATER} apply --help
+      timeout: 5s
+    assertions:
+      - command: assert_contains "template-repo" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "target-dir" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "dry-run" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: unknown_command
+    name: "Unknown command returns error"
+    run:
+      command: ${TEMPLATER} unknown 2>&1
+      timeout: 5s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: no_args
+    name: "No arguments shows help"
+    run:
+      command: ${TEMPLATER}
+      timeout: 5s
+    assertions:
+      - command: assert_contains "templater" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code

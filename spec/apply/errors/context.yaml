@@ -1,0 +1,53 @@
+name: "Error handling"
+description: "Error conditions and validation"
+
+scenarios:
+  - id: missing_template_repo
+    name: "Error when template repo does not exist"
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/nonexistent ${TEST_TMP}/project auth 2>&1
+      timeout: 5s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: missing_target_dir
+    name: "Error when target directory does not exist"
+    before:
+      run: ${SPEC_ROOT}/apply/errors/scripts/setup_basic.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/nonexistent auth 2>&1
+      timeout: 5s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: no_features_specified
+    name: "Error when no features are specified"
+    before:
+      run: ${SPEC_ROOT}/apply/errors/scripts/setup_basic.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project 2>&1
+      timeout: 5s
+    assertions:
+      - command: assert_contains "no features specified" ${RUN_OUTPUT}/stdout
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: missing_required_args
+    name: "Error when missing required arguments"
+    run:
+      command: ${TEMPLATER} apply 2>&1
+      timeout: 5s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: nonexistent_feature
+    name: "Error when feature does not exist in template"
+    before:
+      run: ${SPEC_ROOT}/apply/errors/scripts/setup_basic.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project nonexistent 2>&1
+      timeout: 10s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0

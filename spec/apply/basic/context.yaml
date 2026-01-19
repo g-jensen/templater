@@ -1,0 +1,67 @@
+name: "Basic apply operations"
+description: "Core apply functionality for single features"
+
+scenarios:
+  - id: apply_single_feature
+    name: "Apply a single feature successfully"
+    before:
+      run: ${SPEC_ROOT}/apply/basic/scripts/setup_single_feature.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applying auth... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied 1 feature" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: creates_applied_yml
+    name: "Creates .templater/applied.yml after successful apply"
+    before:
+      run: ${SPEC_ROOT}/apply/basic/scripts/setup_single_feature.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth && cat ${TEST_TMP}/project/.templater/applied.yml
+      timeout: 10s
+    assertions:
+      - command: assert_contains "auth" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: apply_multiple_features
+    name: "Apply multiple features at once"
+    before:
+      run: ${SPEC_ROOT}/apply/basic/scripts/setup_multiple_features.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth database
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applying auth... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applying database... done" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied 2 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: skip_already_applied
+    name: "Skip features that are already applied"
+    before:
+      run: ${SPEC_ROOT}/apply/basic/scripts/setup_already_applied.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applied 0 features" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "1 already applied" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: singular_feature_message
+    name: "Use singular 'feature' when applying one"
+    before:
+      run: ${SPEC_ROOT}/apply/basic/scripts/setup_single_feature.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applied 1 feature." ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code

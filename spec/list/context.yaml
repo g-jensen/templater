@@ -1,0 +1,137 @@
+name: "templater list"
+description: "Display available features as an ASCII tree"
+
+scenarios:
+  - id: single_feature
+    name: "Single feature at root level"
+    before:
+      run: |
+        mkdir -p ${TEST_TMP}/templates/auth
+        printf '%s' "patch content" > ${TEST_TMP}/templates/auth/base.patch
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} list ${TEST_TMP}/templates
+      timeout: 5s
+    assertions:
+      - command: assert_contains "└── auth" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: multiple_siblings
+    name: "Multiple sibling features"
+    before:
+      run: |
+        mkdir -p ${TEST_TMP}/templates/auth
+        mkdir -p ${TEST_TMP}/templates/database
+        printf '%s' "patch" > ${TEST_TMP}/templates/auth/base.patch
+        printf '%s' "patch" > ${TEST_TMP}/templates/database/base.patch
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} list ${TEST_TMP}/templates
+      timeout: 5s
+    assertions:
+      - command: assert_contains "├── auth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "└── database" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: nested_features
+    name: "Nested features show hierarchy"
+    before:
+      run: |
+        mkdir -p ${TEST_TMP}/templates/auth/oauth/google
+        mkdir -p ${TEST_TMP}/templates/auth/oauth/github
+        printf '%s' "patch" > ${TEST_TMP}/templates/auth/base.patch
+        printf '%s' "patch" > ${TEST_TMP}/templates/auth/oauth/base.patch
+        printf '%s' "patch" > ${TEST_TMP}/templates/auth/oauth/google/base.patch
+        printf '%s' "patch" > ${TEST_TMP}/templates/auth/oauth/github/base.patch
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} list ${TEST_TMP}/templates
+      timeout: 5s
+    assertions:
+      - command: assert_contains "auth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "oauth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "google" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "github" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: empty_template_repo
+    name: "Empty template repo shows nothing"
+    before:
+      run: mkdir -p ${TEST_TMP}/templates
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} list ${TEST_TMP}/templates
+      timeout: 5s
+    assertions:
+      - command: assert_equals "" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: directory_without_patch
+    name: "Directories without base.patch are not listed"
+    before:
+      run: |
+        mkdir -p ${TEST_TMP}/templates/auth/oauth
+        printf '%s' "patch" > ${TEST_TMP}/templates/auth/base.patch
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} list ${TEST_TMP}/templates
+      timeout: 5s
+    assertions:
+      - command: assert_contains "auth" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: skip_non_feature_ancestors
+    name: "Non-feature ancestor directories are collapsed in path"
+    before:
+      run: |
+        mkdir -p ${TEST_TMP}/templates/providers/oauth/google
+        printf '%s' "patch" > ${TEST_TMP}/templates/providers/oauth/google/base.patch
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} list ${TEST_TMP}/templates
+      timeout: 5s
+    assertions:
+      - command: assert_contains "providers/oauth/google" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: nonexistent_directory
+    name: "Nonexistent template directory returns error"
+    run:
+      command: ${TEMPLATER} list ${TEST_TMP}/nonexistent
+      timeout: 5s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: missing_argument
+    name: "Missing argument returns error"
+    run:
+      command: ${TEMPLATER} list 2>&1
+      timeout: 5s
+    assertions:
+      - command: assert_gt ${RUN_OUTPUT}/exit_code 0
+
+  - id: complex_tree
+    name: "Complex tree structure from spec"
+    before:
+      run: |
+        mkdir -p ${TEST_TMP}/templates/auth/oauth/google
+        mkdir -p ${TEST_TMP}/templates/auth/oauth/github
+        mkdir -p ${TEST_TMP}/templates/database/migrations
+        printf '%s' "patch" > ${TEST_TMP}/templates/auth/base.patch
+        printf '%s' "patch" > ${TEST_TMP}/templates/auth/oauth/base.patch
+        printf '%s' "patch" > ${TEST_TMP}/templates/auth/oauth/google/base.patch
+        printf '%s' "patch" > ${TEST_TMP}/templates/auth/oauth/github/base.patch
+        printf '%s' "patch" > ${TEST_TMP}/templates/database/base.patch
+        printf '%s' "patch" > ${TEST_TMP}/templates/database/migrations/base.patch
+      timeout: 2s
+    run:
+      command: ${TEMPLATER} list ${TEST_TMP}/templates
+      timeout: 5s
+    assertions:
+      - command: assert_contains "auth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "oauth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "google" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "github" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "database" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "migrations" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code

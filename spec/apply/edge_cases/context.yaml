@@ -1,0 +1,51 @@
+name: "Edge cases"
+description: "Unusual but valid scenarios"
+
+scenarios:
+  - id: deeply_nested_features
+    name: "Apply deeply nested features with all dependencies"
+    before:
+      run: ${SPEC_ROOT}/apply/edge_cases/scripts/setup_deeply_nested.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project a/b/c/d/e
+      timeout: 15s
+    assertions:
+      - command: assert_contains "Applied 5 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: duplicate_feature_request
+    name: "Requesting same feature twice applies it once"
+    before:
+      run: ${SPEC_ROOT}/apply/edge_cases/scripts/setup_duplicate_request.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth auth auth
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applied 1 feature" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: feature_names_with_dashes
+    name: "Feature names with dashes work correctly"
+    before:
+      run: ${SPEC_ROOT}/apply/edge_cases/scripts/setup_special_names.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project feature-with-dashes
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applying feature-with-dashes... done" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: feature_names_with_underscores
+    name: "Feature names with underscores work correctly"
+    before:
+      run: ${SPEC_ROOT}/apply/edge_cases/scripts/setup_special_names.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project feature_with_underscores
+      timeout: 10s
+    assertions:
+      - command: assert_contains "Applying feature_with_underscores... done" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code

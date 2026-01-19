@@ -1,0 +1,121 @@
+name: "Integration workflows"
+description: "End-to-end workflows combining multiple commands"
+
+before_each:
+  run: |
+    mkdir -p ${TEST_TMP}/project
+    cd ${TEST_TMP}/project
+    git init --quiet
+    git config user.email "test@test.com"
+    git config user.name "Test"
+    printf '%s' "initial" > file.txt
+    git add .
+    git commit -m "initial" --quiet
+  timeout: 10s
+
+scenarios:
+  - id: list_then_apply
+    name: "List features, then apply them"
+    before:
+      run: ${SPEC_ROOT}/integration/scripts/setup_full_workflow.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: |
+        ${TEMPLATER} list ${TEST_TMP}/templates
+        ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google
+      timeout: 15s
+    assertions:
+      - command: assert_contains "auth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "oauth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "google" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied 3 features" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: apply_then_status
+    name: "Apply features, then check status"
+    before:
+      run: ${SPEC_ROOT}/integration/scripts/setup_full_workflow.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: |
+        ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google
+        ${TEMPLATER} status ${TEST_TMP}/project
+      timeout: 15s
+    assertions:
+      - command: assert_contains "Applied features:" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "- auth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "- auth/oauth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "- auth/oauth/google" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: incremental_apply
+    name: "Apply features incrementally"
+    before:
+      run: ${SPEC_ROOT}/integration/scripts/setup_full_workflow.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: |
+        ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google
+        ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/github
+      timeout: 20s
+    assertions:
+      - command: assert_contains "Applied 3 features" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied 1 feature" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "2 already applied" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: dry_run_then_apply
+    name: "Dry run, then actually apply"
+    before:
+      run: ${SPEC_ROOT}/integration/scripts/setup_full_workflow.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: |
+        ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google --dry-run
+        ${TEMPLATER} status ${TEST_TMP}/project
+        ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google
+        ${TEMPLATER} status ${TEST_TMP}/project
+      timeout: 20s
+    assertions:
+      - command: assert_contains "Would apply:" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "No features applied" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied 3 features" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "Applied features:" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: apply_multiple_branches
+    name: "Apply features from different branches of the tree"
+    before:
+      run: ${SPEC_ROOT}/integration/scripts/setup_full_workflow.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: |
+        ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google database/migrations
+        ${TEMPLATER} status ${TEST_TMP}/project
+      timeout: 20s
+    assertions:
+      - command: assert_contains "Applied 5 features" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "- auth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "- auth/oauth" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "- auth/oauth/google" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "- database" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "- database/migrations" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
+
+  - id: verify_files_created
+    name: "Verify actual files are created by patches"
+    before:
+      run: ${SPEC_ROOT}/integration/scripts/setup_full_workflow.sh ${TEST_TMP}
+      timeout: 5s
+    run:
+      command: |
+        ${TEMPLATER} apply ${TEST_TMP}/templates ${TEST_TMP}/project auth/oauth/google
+        cat ${TEST_TMP}/project/auth.txt
+        cat ${TEST_TMP}/project/oauth.txt
+        cat ${TEST_TMP}/project/google.txt
+      timeout: 15s
+    assertions:
+      - command: assert_contains "auth feature" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "oauth feature" ${RUN_OUTPUT}/stdout
+      - command: assert_contains "google feature" ${RUN_OUTPUT}/stdout
+      - command: assert_equals 0 ${RUN_OUTPUT}/exit_code
