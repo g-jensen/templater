@@ -1,6 +1,7 @@
 package template
 
 import (
+	"fmt"
 	"testing"
 
 	"templater/internal/testutil/executor"
@@ -9,6 +10,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func applyCommand(directory string, patchPath string) string {
+	return fmt.Sprintf("git apply --unsafe-paths --directory=%s %s", directory, patchPath)
+}
+
+func reverseCommand(directory string, patchPath string) string {
+	return fmt.Sprintf("git apply --unsafe-paths --reverse --directory=%s %s", directory, patchPath)
+}
 
 func TestApplyFeature_ExecutesGitApply(t *testing.T) {
 	memfs := fs.NewMemoryFS()
@@ -23,7 +32,7 @@ func TestApplyFeature_ExecutesGitApply(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, exec.Commands, 1)
-	expected_command := "git apply --unsafe-paths --directory=project templates/auth/base.patch"
+	expected_command := applyCommand("project", "templates/auth/base.patch")
 	assert.Equal(t, exec.Commands[0].Command, expected_command)
 }
 
@@ -95,7 +104,7 @@ func TestApplyFeatures_RollsBackOnFailure(t *testing.T) {
 
 	exec := &executor.FakeExecutor{
 		ExitCodes: map[string]int{
-			"git apply --unsafe-paths --directory=project templates/auth/oauth/base.patch": 1,
+			applyCommand("project", "templates/auth/oauth/base.patch"): 1,
 		},
 		Stderr: "patch does not apply",
 	}
@@ -105,7 +114,7 @@ func TestApplyFeatures_RollsBackOnFailure(t *testing.T) {
 
 	assert.Equal(t, 3, len(exec.Commands))
 	lastCmd := exec.Commands[len(exec.Commands)-1]
-	expectedCommand := "git apply --unsafe-paths --reverse --directory=project templates/auth/base.patch"
+	expectedCommand := reverseCommand("project", "templates/auth/base.patch")
 	assert.Equal(t, expectedCommand, lastCmd.Command)
 }
 
@@ -121,7 +130,7 @@ func TestApplyFeatures_RollsBackMultipleOnFailure(t *testing.T) {
 
 	exec := &executor.FakeExecutor{
 		ExitCodes: map[string]int{
-			"git apply --unsafe-paths --directory=project templates/auth/oauth/base.patch": 1,
+			applyCommand("project", "templates/auth/oauth/base.patch"): 1,
 		},
 		Stderr: "patch does not apply",
 	}
@@ -132,9 +141,9 @@ func TestApplyFeatures_RollsBackMultipleOnFailure(t *testing.T) {
 	assert.Equal(t, 5, len(exec.Commands))
 
 	baseCommand := exec.Commands[len(exec.Commands)-1]
-	expectedBaseCommand := "git apply --unsafe-paths --reverse --directory=project templates/base.patch"
+	expectedBaseCommand := reverseCommand("project", "templates/base.patch")
 	authCommand := exec.Commands[len(exec.Commands)-2]
-	expectedAuthCommand := "git apply --unsafe-paths --reverse --directory=project templates/auth/base.patch"
+	expectedAuthCommand := reverseCommand("project", "templates/auth/base.patch")
 	assert.Equal(t, expectedBaseCommand, baseCommand.Command)
 	assert.Equal(t, expectedAuthCommand, authCommand.Command)
 }
