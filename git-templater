@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# turns out this entire Go repo can be essentially equated to a ~100 line bash script...
+
 set -e
 
 usage() {
