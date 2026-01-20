@@ -1,6 +1,6 @@
 ---
-name: templater
-description: Creating patch-based template repositories for the templater CLI tool
+name: git-templater
+description: Creating patch-based template repositories for the git-templater CLI tool
 ---
 
 # Patch-Based Template Repository Architecture
@@ -255,7 +255,7 @@ git checkout auth/jwt
 
 **If you find unacceptable conflicts:** Refactor the feature to use spatial isolation.
 
-**Do NOT test combinations** - templater users will test feature compositions.
+**Do NOT test combinations** - git-templater users will test feature compositions.
 
 ## Summary
 
