@@ -12,12 +12,16 @@ Commands:
     list <template-repo>
         List all branches in the template repository
 
-    apply <template-repo> <target-dir> <branch...>
+    apply <template-repo> <target-dir> [--strategy <strategy>] <branch...>
         Apply feature branches from template repo to target directory
+
+Options:
+    --strategy <strategy>    Git merge strategy option (e.g., theirs, ours, union)
 
 Examples:
     git-templater list ./templates
     git-templater apply ./templates ./my-project feature/auth/google feature/auth/github
+    git-templater apply ./templates ./my-project --strategy union feature/auth/google
 EOF
     exit 1
 }
@@ -39,6 +43,21 @@ apply_branches() {
     local template_repo="$1"
     local target_dir="$2"
     shift 2
+    
+    # Parse options
+    local merge_strategy=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --strategy)
+                merge_strategy="$2"
+                shift 2
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    
     local branches=("$@")
     
     if [[ ! -d "$template_repo/.git" ]]; then
@@ -87,7 +106,16 @@ apply_branches() {
     # Merge each branch
     for branch in "${branches[@]}"; do
         echo "Merging templates/$branch..."
-        if ! git merge "templates/$branch" -m "Applied $branch"; then
+        
+        # Build merge command with optional strategy
+        local merge_cmd="git merge"
+        if [[ -n "$merge_strategy" ]]; then
+            merge_cmd="$merge_cmd -X $merge_strategy"
+            echo "Using merge strategy: $merge_strategy"
+        fi
+        merge_cmd="$merge_cmd templates/$branch -m \"Applied $branch\""
+        
+        if ! eval "$merge_cmd"; then
             echo "Error: Failed to merge $branch"
             echo "Conflicts detected. Resolve them manually or abort with: git merge --abort"
             exit 1
